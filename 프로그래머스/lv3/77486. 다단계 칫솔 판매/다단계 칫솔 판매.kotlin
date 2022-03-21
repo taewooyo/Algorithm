@@ -1,5 +1,5 @@
 class Solution {
-    
+
     fun go(name: String, money: Int, answer: IntArray, referral: Array<String>, table: HashMap<String, Int>) {
         if(name == "-" || money == 0) return
         var temp = 0
@@ -7,11 +7,11 @@ class Solution {
         answer[table[name]!!] += (0.9 * money).toInt() + temp
         go(referral[table[name]!!], (0.1 * money).toInt(), answer, referral, table)
     }
-    
+
     fun solution(enroll: Array<String>, referral: Array<String>, seller: Array<String>, amount: IntArray): IntArray {
         val table = hashMapOf<String, Int>()
         var answer: IntArray = IntArray(enroll.size)
-        
+
         for(i in enroll.indices) table[enroll[i]] = i
         for(i in seller.indices) go(seller[i], amount[i] * 100, answer, referral, table)
         return answer
