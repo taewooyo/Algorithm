@@ -1,160 +1,115 @@
 #include <iostream>
-#include <tuple>
-#include <vector>
 #include <algorithm>
-#define MAX 50
-#define DIR 8
+#include <queue>
+#include <cmath>
+#include <vector>
+#define NM 55
+
 using namespace std;
+typedef long long int ll;
 
-vector<tuple<int, int, int> > grid[MAX][MAX];
-vector<tuple<int, int, int> > next_grid[MAX][MAX];
+int n, m, K;
+struct Fireball {
+    int m, s, d;
+    Fireball(int m, int s, int d): m(m), s(s), d(d) {}
+};
+vector<Fireball> a[NM][NM], b[NM][NM];
+int dirs[8][2] = { {-1, 0}, {-1, 1}, {0, 1}, {1, 1}, {1, 0}, {1, -1}, {0, -1}, {-1, -1} };
 
-int N, M, K;
+void Input() {
+    cin >> n >> m >> K;
+    while(m--) {
+        int r, c, m, s, d;
+        cin >> r >> c >> m >> s >> d;
+        a[r - 1][c - 1].push_back(Fireball(m, s, d));
+    }
+}
 
+void MoveFireballs() {
+    for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) b[i][j].clear();
 
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            if (a[i][j].size() == 0) continue;
+            for (int k = 0; k < a[i][j].size(); k++) {
+                
+                Fireball fireball = a[i][j][k];
+                int ny = (i + dirs[fireball.d][0] * fireball.s) % n;
+                int nx = (j + dirs[fireball.d][1] * fireball.s) % n;
+                if(ny < 0) ny += n;
+                if(nx < 0) nx += n;
+                b[ny][nx].push_back(fireball);
+            }
+        }
+    }
+}
+
+void SplitFireball(int y, int x) {
 /*
-
-nn격자에 m개의 파이어볼이 존재
-m개의 파이어볼은 (y, x, 질량m, 방향d 속력s)의 속성을 가지고 있다.
-1번은 n번가 연결되어있다.
-
-1. 모든 파이어볼은 자신의 방향으로 d로 s만큼 이동한다. 이동 중 같은칸 에 여러 파이어볼이 존재할 수 있음
-	1.1 n번의 다음 칸은 1이다..
-2. 이동이 끝난 후,
-	2.1 2개의 파이어볼을 가지고 있는 칸은,
-	2.2 파이어볼은 4개의 파이어볼로 나뉜다.
-	2.3 나누어진 파이어볼의 속성은
-		2.3.1 질량은 합쳐진 파이어볼 질량의 합/5
-		2.3.2 속력은 합쳐진 파이어볼 속력의 합/파이어볼 개수
-		2.3.3 합쳐진 파이어볼의 방향이 모두 홀수이거나, 짝수라면 방향은 0246 그것이 아니라면 1,3,5,7
-	질량이 0인 곳은 소멸된다.
-
-	K번 후 남이 있는 파이어볼의 질량은?
-
+2. 이동이 모두 끝난 뒤, 2개 이상의 파이어볼이 있는 칸에서는 다음과 같은 일이 일어난다.
+    1. 같은 칸에 있는 파이어볼은 모두 하나로 합쳐진다.
+    2. 파이어볼은 4개의 파이어볼로 나누어진다.
+    3. 나누어진 파이어볼의 질량, 속력, 방향은 다음과 같다.
+        1. 질량은 ⌊(합쳐진 파이어볼 질량의 합)/5⌋이다.
+        2. 속력은 ⌊(합쳐진 파이어볼 속력의 합)/(합쳐진 파이어볼의 개수)⌋이다.
+        3. 합쳐지는 파이어볼의 방향이 모두 홀수이거나 모두 짝수이면, 방향은 0, 2, 4, 6이 되고, 그렇지 않으면 1, 3, 5, 7이 된다.
+    4. 질량이 0인 파이어볼은 소멸되어 없어진다.
+3. 마법사 상어가 이동을 K번 명령한 후, 남아있는 파이어볼 질량의 합을 구해보자.
 */
+    int m_sum = 0, s_sum = 0;
+    int even = 0, odd = 0;
+    for (int i = 0; i < b[y][x].size(); i++) {
+        Fireball fireball = b[y][x][i];
+        m_sum += fireball.m;
+        s_sum += fireball.s;
+        
+        if(fireball.d % 2 == 0) even++;
+        else odd++;
+    }
+    int dir = 0;
+    if(even == 0 || odd == 0) dir = 0;
+    else dir = 1;
 
-bool InRange(int y, int x) {
-	return 0 <= y && y < N && 0 <= x && x < N;
+    for (int i = dir; i < 8; i += 2) {
+        int avg = m_sum / 5;
+        if(avg == 0) continue;
+        a[y][x].push_back(Fireball(avg, s_sum / b[y][x].size(), i));
+    }
 }
 
-pair<int, int> NextPos(int y, int x, int s, int d) {
-	int dy[] = { -1, -1, 0, 1, 1,  1,  0, -1 };
-	int dx[] = { 0,  1, 1, 1, 0, -1, -1, -1 };
+void Pro() {
+    while(K--) {
+        // 1. 모든 파이어볼 이동하기
+        MoveFireballs();
+        for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) a[i][j].clear();
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                if(b[i][j].size() == 1) {
+                    a[i][j] = b[i][j];
+                }
+                else {
+                    // 2. 2개 이상의 파이어볼 분리하기
+                    SplitFireball(i, j);
+                }
+            }
+        }
+    }
 
-	// 움직인 이후 값이 음수가 되는 경우, 이를 양수로 쉽게 만들기 위해서는
-	// n의 배수이며 더했을 때 값을 항상 양수로 만들어 주는 수인 nv를 더해주면 됩니다.
-	int ny = (y + dy[d] * s + N * s) % N;
-	int nx = (x + dx[d] * s + N * s) % N;
-
-	return make_pair(ny, nx);
-}
-
-void MoveAll() {
-	for (int i = 0; i < N; i++) {
-		for (int j = 0; j < N; j++) {
-			next_grid[i][j].clear();
-		}
-	}
-
-	for (int i = 0; i < N; i++) {
-		for (int j = 0; j < N; j++) {
-			if (grid[i][j].size() == 0) continue;
-			for (int k = 0; k < grid[i][j].size(); k++) {
-				int m, s, d;
-				tie(m, s, d) = grid[i][j][k];
-
-				int ny, nx;
-				tie(ny, nx) = NextPos(i, j, s, d);
-				next_grid[ny][nx].push_back(make_tuple(m, s, d));
-			}
-		}
-	}
-}
-
-void DivideFireball(int y, int x) {
-	/*
-	2. 이동이 끝난 후,
-		2.1 2개의 파이어볼을 가지고 있는 칸은,
-		2.2 파이어볼은 4개의 파이어볼로 나뉜다.
-		2.3 나누어진 파이어볼의 속성은
-		2.3.1 질량은 합쳐진 파이어볼 질량의 합 / 5
-		2.3.2 속력은 합쳐진 파이어볼 속력의 합 / 파이어볼 개수
-		2.3.3 합쳐진 파이어볼의 방향이 모두 홀수이거나, 짝수라면 방향은 0246 그것이 아니라면 1, 3, 5, 7
-		질량이 0인 곳은 소멸된다.
-	*/
-	int sum_mass = 0;
-	int sum_speed = 0;
-	int odd_cnt = 0, even_cnt = 0;
-	for (int i = 0; i < next_grid[y][x].size(); i++) {
-		int m, s, dir;
-		tie(m, s, dir) = next_grid[y][x][i];
-		sum_mass += m;
-		sum_speed += s;
-		if (dir % 2 == 0) {
-			even_cnt++;
-		}
-		else
-			odd_cnt++;
-	}
-
-	int base = 0;
-	if (even_cnt == 0 || odd_cnt == 0)
-		base = 0;
-	else base = 1;
-
-	for (int i = base; i < 8; i += 2) {
-		int avg = sum_mass / 5;
-		if (avg != 0) {
-			grid[y][x].push_back(make_tuple(sum_mass / 5, sum_speed / next_grid[y][x].size(), i));
-		}
-	}
-}
-
-void Simulate() {
-	MoveAll();
-
-	for (int i = 0; i < N; i++)
-		for (int j = 0; j < N; j++) {
-			grid[i][j].clear();
-		}
-
-	for (int i = 0; i < N; i++) {
-		for (int j = 0; j < N; j++) {
-			if (next_grid[i][j].size() == 1)
-				grid[i][j].push_back(next_grid[i][j][0]);
-			else {
-				DivideFireball(i, j);
-			}
-		}
-	}
+    int ans = 0;
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            for (int k = 0; k < a[i][j].size(); k++) {
+                ans += a[i][j][k].m;
+            }
+        }
+    }
+    cout << ans;
 }
 
 int main() {
-	ios_base::sync_with_stdio(false);
-	cin.tie(nullptr);
-	cout.tie(nullptr);
-
-	cin >> N >> M >> K;
-	for (int i = 0; i < M; i++) {
-		int r, c, m, s, d;
-		cin >> r >> c >> m >> s >> d;
-		grid[r - 1][c - 1].push_back(make_tuple(m, s, d));
-	}
-
-	while (K--) {
-		Simulate();
-	}
-
-	int answer = 0;
-	for (int i = 0; i < N; i++) {
-		for (int j = 0; j < N; j++) {
-			for (int k = 0; k < grid[i][j].size(); k++) {
-				int m;
-				tie(m, ignore, ignore) = grid[i][j][k];
-				answer += m;
-			}
-		}
-	}
-	cout << answer;
-	return 0;
+    ios_base::sync_with_stdio(false);
+    cin.tie(nullptr);
+    Input();
+    Pro();
+    return 0;
 }
